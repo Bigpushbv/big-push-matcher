@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Label {
+  id                String   @id @default(cuid())
+  naam              String
+  prefix            String   @unique
+  land              String   // NL, DE
+  taal              String   // nl, de
+  vlag              String   // emoji flag
+  status            String   @default("Actief") // Actief, Gearchiveerd
+  huidigeVolgnummer Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  kandidaten       Kandidaat[]
+  bedrijven        Bedrijf[]
+  bedrijfsrelaties Bedrijfsrelatie[]
+  emailBlokken     EmailBlok[]
+  emailTemplates   EmailTemplate[]
+}
+
+model Kandidaat {
+  id                         String    @id @default(cuid())
+  labelId                    String
+  label                      Label     @relation(fields: [labelId], references: [id])
+  referentiecode             String    @unique
+  naam                       String
+  woonplaats                 String
+  regio                      String
+  korteOmschrijving          String    @db.Text
+  specialismen               String[]
+  uitsluitingen              String[]
+  concurrentiebedingTekst    String?   @db.Text
+  concurrentiebedingVerloopt DateTime?
+  salariseis                 String?
+  zoekprofiel                String?   @db.Text
+  reisbereidheid             String    @default("Gemiddeld") // Laag, Gemiddeld, Hoog, Landelijk
+  lopendeProcesen            Int       @default(0)
+  status                     String    @default("Beschikbaar") // Beschikbaar, Niet beschikbaar, In afwachting
+  anoniemCvLink              String?
+  uitgebreidCvLink           String?
+  notities                   String?   @db.Text
+  aangemaaktOp               DateTime  @default(now())
+
+  introducties IntroductieTracking[]
+  actieLogs    ActieLog[]
+
+  @@index([labelId])
+  @@index([status])
+  @@index([regio])
+}
+
+model Bedrijf {
+  id             String   @id @default(cuid())
+  labelId        String
+  label          Label    @relation(fields: [labelId], references: [id])
+  bedrijfsnaam   String
+  contactpersoon String
+  email          String
+  telefoon       String?
+  status         String   @default("Prospect") // Actief contract, In aansluiting, Prospect
+  zoektInRegios  String[]
+  werkgebiedType String   @default("Landelijk") // Specifieke regio, Landelijk, Op locatie
+  sector         String?
+  bekendeMerken  String[]
+  notities       String?  @db.Text
+  aangemaaktOp   DateTime @default(now())
+
+  introducties IntroductieTracking[]
+  actieLogs    ActieLog[]
+
+  @@index([labelId])
+  @@index([status])
+}
+
+model Bedrijfsrelatie {
+  id             String  @id @default(cuid())
+  labelId        String?
+  label          Label?  @relation(fields: [labelId], references: [id])
+  moederbedrijf  String
+  verwantBedrijf String
+  type           String  // Dochter, Zuster, Historische naam, Handelsnaam
+
+  @@index([moederbedrijf])
+  @@index([verwantBedrijf])
+}
+
+model IntroductieTracking {
+  id                   String   @id @default(cuid())
+  kandidaatId          String
+  kandidaat            Kandidaat @relation(fields: [kandidaatId], references: [id])
+  bedrijfId            String
+  bedrijf              Bedrijf  @relation(fields: [bedrijfId], references: [id])
+  status               String   @default("Niet gestuurd")
+  datumLaatstGewijzigd DateTime @default(now()) @updatedAt
+  notities             String?  @db.Text
+
+  @@unique([kandidaatId, bedrijfId])
+}
+
+model ActieLog {
+  id          String     @id @default(cuid())
+  kandidaatId String?
+  kandidaat   Kandidaat? @relation(fields: [kandidaatId], references: [id])
+  bedrijfId   String?
+  bedrijf     Bedrijf?   @relation(fields: [bedrijfId], references: [id])
+  datum       DateTime   @default(now())
+  actie       String     @db.Text
+  automatisch Boolean    @default(false)
+
+  @@index([kandidaatId])
+  @@index([bedrijfId])
+  @@index([datum])
+}
+
+model EmailBlok {
+  id         String   @id @default(cuid())
+  labelId    String
+  label      Label    @relation(fields: [labelId], references: [id])
+  bloknaam   String
+  type       String   // statisch, kandidatenlijst, handtekening
+  bodyHtml   String   @db.Text
+  variabelen String[]
+  volgorde   Int      @default(0)
+
+  templateBlokken TemplateBlok[]
+
+  @@index([labelId])
+}
+
+model EmailTemplate {
+  id                String @id @default(cuid())
+  labelId           String
+  label             Label  @relation(fields: [labelId], references: [id])
+  templateNaam      String
+  onderwerpTemplate String
+  blokken           TemplateBlok[]
+
+  @@index([labelId])
+}
+
+model TemplateBlok {
+  id         String        @id @default(cuid())
+  templateId String
+  template   EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  blokId     String
+  blok       EmailBlok     @relation(fields: [blokId], references: [id], onDelete: Cascade)
+  volgorde   Int
+}
