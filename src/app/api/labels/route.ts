@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const labels = await prisma.label.findMany({
-    orderBy: { createdAt: "asc" },
-  });
-  return NextResponse.json(labels);
+  try {
+    const labels = await prisma.label.findMany({
+      orderBy: { createdAt: "asc" },
+    });
+    return NextResponse.json(labels);
+  } catch (e: unknown) {
+    const error = e as Error;
+    console.error("GET /api/labels error:", error.message);
+    return NextResponse.json(
+      { error: "Database error", detail: error.message },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
